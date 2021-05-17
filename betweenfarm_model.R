@@ -6,6 +6,9 @@ betweenfarm_model <- function(
   beta_truck,
   beta_formula,
   
+  # biosecurity
+  biosecurity,
+  
   # initial state nodes and infectius period
   I,
   tI_time,
@@ -33,8 +36,14 @@ betweenfarm_model <- function(
   movement_dataframe, # database with netwotk
   movement_matrix, # list of movement matrix by each time step
   truck_matrix,
-  formula
+  formula,
+  reinfected,
   
+  # control
+  auto_q = F,
+  quarenten_vector,
+  distance_q = 0,
+  auto_v = F
 ){
   
   # conditional to know the month we are modelling to fit with the seasonality
@@ -120,17 +129,17 @@ betweenfarm_model <- function(
     time_infected <- time_infected + as.numeric(tI>0)
     
     # force suceptible by time have been infected
-    time_infected_nursery <- time_infected[ nodes$network.id[nodes$farm_type == "Nursery"] ]
-    names(time_infected_nursery) <- nodes$network.id[nodes$farm_type == "Nursery"]
-    time_infected_nursery <- as.numeric(names(which(time_infected_nursery > 8)))
+    time_infected_nursery <- time_infected[ nodes$network.id[nodes$farm_type == "nursery"] ]
+    names(time_infected_nursery) <- nodes$network.id[nodes$farm_type == "nursery"]
+    time_infected_nursery <- as.numeric(names(which(time_infected_nursery > 8))) # 8 weeks
     
-    time_infected_finisher <- time_infected[ nodes$network.id[nodes$farm_type == "Finisher"] ]
-    names(time_infected_finisher) <- nodes$network.id[nodes$farm_type == "Finisher"]
-    time_infected_finisher <- as.numeric(names(which(time_infected_finisher > 26)))
+    time_infected_finisher <- time_infected[ nodes$network.id[nodes$farm_type == "finisher"] ]
+    names(time_infected_finisher) <- nodes$network.id[nodes$farm_type == "finisher"]
+    time_infected_finisher <- as.numeric(names(which(time_infected_finisher > 26))) # 26 weeks
     
-    time_infected_gilt <- time_infected[ nodes$network.id[nodes$farm_type == "Gilt"] ]
-    names(time_infected_gilt) <- nodes$network.id[nodes$farm_type == "Gilt"]
-    time_infected_gilt <- as.numeric(names(which(time_infected_gilt > 23)))
+    time_infected_gilt <- time_infected[ nodes$network.id[nodes$farm_type == "gilt"] ]
+    names(time_infected_gilt) <- nodes$network.id[nodes$farm_type == "gilt"]
+    time_infected_gilt <- as.numeric(names(which(time_infected_gilt > 23))) # 23 weeks
     
     
     time_infected <- time_infected * I # if the farm is not infected the time will retunr to 0
@@ -250,7 +259,7 @@ betweenfarm_model <- function(
     # farms were not infected a long time ago
     # they are different from the intial farms infected
     # they are different from the farm initial reinfected
-    ratehardlyinfected <- hadrlyinfected * as.numeric(!I)
+    ratehardlyinfected <- biosecurity * as.numeric(!I)
     
     
     trans_routes_aux <- data.frame(id = 1:length(movement_matrix_timestep[1, ]),
