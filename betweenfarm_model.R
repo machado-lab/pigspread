@@ -3,7 +3,10 @@ betweenfarm_model <- function(
   beta_net,
   beta_local,
   beta_reinfected,
-  beta_truck,
+  beta_truck_feed,
+  beta_truck_pig,
+  beta_truck_market,
+  beta_truck_loading,
   beta_formula,
   
   # biosecurity
@@ -35,15 +38,22 @@ betweenfarm_model <- function(
   distance_matrix, # matrix distances between nodes
   movement_dataframe, # database with netwotk
   movement_matrix, # list of movement matrix by each time step
-  truck_matrix,
+  truck_feed_matrix,
+  truck_pig_matrix,
+  truck_market_matrix,
+  truck_loading_matrix,
   formula,
   reinfected,
+  prob_survival,
   
-  # control
+  # control vaccine
+  auto_v = F,
+  
+  # control quarantine
   auto_q = F,
   quarenten_vector,
-  distance_q = 0,
-  auto_v = F
+  days_q,
+  distance_q = 0
 ){
   
   # conditional to know the month we are modelling to fit with the seasonality
@@ -57,10 +67,10 @@ betweenfarm_model <- function(
   time_start <- as.numeric(format(time_start, "%m"))
   
   # matrix with the status of the farms in each day
-  M_Sim_I = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1)) #
-  M_Sim_newI = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1))
-  M_Sim_R = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1))
-  M_Sim_O = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1))
+  M_Sim_I = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1)) # amtrix infected farms over time
+  M_Sim_newI = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1)) # matrix identifyin the fay farm was infected
+  M_Sim_R = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1)) # matrix indicating if farm was recovered - we did not use this
+  M_Sim_O = matrix(data = NA, nrow = nrow(nodes), ncol = (tSim+1)) # matrix identifiying when the farm was detected
   
   
   # forced events with time equal to 0 - this mean we force farms to be infected
@@ -106,7 +116,10 @@ betweenfarm_model <- function(
     movement_matrix_timestep <- movement_matrix[[i]]
     
     # network truck  in time step i
-    truck_matrix_timestep <- truck_matrix[[i]] 
+    truck_feed_matrix_timestep <- truck_feed_matrix[[i]] 
+    truck_pig_matrix_timestep <- truck_pig_matrix[[i]] 
+    truck_market_matrix_timestep <- truck_market_matrix[[i]] 
+    truck_loading_matrix_timestep <- truck_loading_matrix[[i]] 
     
     # formula in time step i
     formula_timestep <- formula[,i]
@@ -214,13 +227,14 @@ betweenfarm_model <- function(
     # Pvector <- I %*% movement_matrix_timestep
     # quarenten_vector 0 = T or 1 and diff 0 = F or 0, if we multiply by the status
     # 1 infected by 0 quarenten = 0 transmission
-    Pvector <- (I * as.numeric(quarenten_vector == 0) ) %*% movement_matrix_timestep
+    Pvector <- ((I * as.numeric(quarenten_vector == 0) ) %*% movement_matrix_timestep)[1,] 
+    truck_feed_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_feed_matrix_timestep)[1,] 
+    truck_pig_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_pig_matrix_timestep)[1,] 
+    truck_market_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_market_matrix_timestep)[1,] 
+    truck_loading_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_loading_matrix_timestep)[1,] 
     
-    truck_vector <- (I * as.numeric(quarenten_vector == 0) ) %*% truck_matrix_timestep
     formula_vector <- (I < 1) * formula_timestep
     
-    Pvector <- Pvector[1,] # new line
-    truck_vector <- truck_vector[1,] # new line
     # example
     # matrix(c(F,T,T,F), nrow = 2, ncol = 2)
     #       [,1]  [,2]
@@ -244,7 +258,11 @@ betweenfarm_model <- function(
     
     rateTransmission_net <- (beta_net * seasonality[names(seasonality) == time_start[i]]) * Pvector # new line
     
-    rateTransmission_truck <- (beta_truck * seasonality[names(seasonality) == time_start[i]]) * truck_vector
+    rateTransmission_truck_feed <- (beta_truck_feed * seasonality[names(seasonality) == time_start[i]]) * truck_feed_vector
+    rateTransmission_truck_pig <- (beta_truck_pig * seasonality[names(seasonality) == time_start[i]]) * truck_pig_vector
+    rateTransmission_truck_market <- (beta_truck_market * seasonality[names(seasonality) == time_start[i]]) * truck_market_vector
+    rateTransmission_truck_loading <- (beta_truck_loading * seasonality[names(seasonality) == time_start[i]]) * truck_loading_vector
+    
     rateTransmission_formula <- (beta_formula * seasonality[names(seasonality) == time_start[i]]) * formula_vector
     
     spatial_vector <- (I * as.numeric(quarenten_vector == 0)) %*% gravity_matrix
@@ -254,7 +272,13 @@ betweenfarm_model <- function(
     
     # high risk reinfected farms
     # the infected farms cannot reinfected again 
-    ratereinfected <- (reinfected * (beta_reinfected* seasonality[names(seasonality) == time_start[i]] ) ) * as.numeric(!I)
+    reinfected <- reinfected %>% 
+      dplyr::select(-survival) %>% 
+      mutate(time = ifelse(time > 0, time + 1, 0) ) %>% 
+      left_join(prob_survival, by = "time") %>% 
+      mutate(survival = replace_na(survival, 0))
+    
+    ratereinfected <- (reinfected$survival * (beta_reinfected* seasonality[names(seasonality) == time_start[i]] ) ) * as.numeric(!I)
     
     # farms were not infected a long time ago
     # they are different from the intial farms infected
@@ -267,7 +291,10 @@ betweenfarm_model <- function(
                                    net = 1 - exp(-rateTransmission_net),
                                    sp = 1 - exp(-rateTransmission_sp),
                                    rebreak = 1 - exp(-ratereinfected),
-                                   truck = 1 - exp(-rateTransmission_truck),
+                                   truck_feed = 1 - exp(-rateTransmission_truck_feed),
+                                   truck_pig = 1 - exp(-rateTransmission_truck_pig),
+                                   truck_market = 1 - exp(-rateTransmission_truck_market),
+                                   truck_loading = 1 - exp(-rateTransmission_truck_loading),
                                    formula = 1 - exp(-rateTransmission_formula)
     )
     
@@ -276,7 +303,10 @@ betweenfarm_model <- function(
     rateTransmission <- rateTransmission_net +
       rateTransmission_sp +
       ratereinfected +
-      rateTransmission_truck+
+      rateTransmission_truck_feed +
+      rateTransmission_truck_pig +
+      rateTransmission_truck_market+
+      rateTransmission_truck_loading+
       rateTransmission_formula
     
     
