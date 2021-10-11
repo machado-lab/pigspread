@@ -7,7 +7,8 @@ betweenfarm_model <- function(
   beta_truck_pig,
   beta_truck_market,
   beta_truck_loading,
-  beta_formula,
+  beta_formula_1,
+  beta_formula_2,
   
   # biosecurity
   biosecurity,
@@ -42,7 +43,8 @@ betweenfarm_model <- function(
   truck_pig_matrix,
   truck_market_matrix,
   truck_loading_matrix,
-  formula,
+  formula_1,
+  formula_2,
   reinfected,
   prob_survival,
   
@@ -122,7 +124,8 @@ betweenfarm_model <- function(
     truck_loading_matrix_timestep <- truck_loading_matrix[[i]] 
     
     # formula in time step i
-    formula_timestep <- formula[,i]
+    formula_timestep_1 <- formula_1[,i]
+    formula_timestep_2 <- formula_2[,i]
     
     
     I = as.numeric(tI > 0) # identified infected farms as 1
@@ -233,7 +236,8 @@ betweenfarm_model <- function(
     truck_market_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_market_matrix_timestep)[1,] 
     truck_loading_vector <- ((I * as.numeric(quarenten_vector == 0) ) %*% truck_loading_matrix_timestep)[1,] 
     
-    formula_vector <- (I < 1) * formula_timestep
+    formula_vector_1 <- (I < 1) * formula_timestep_1
+    formula_vector_2 <- (I < 1) * formula_timestep_2
     
     # example
     # matrix(c(F,T,T,F), nrow = 2, ncol = 2)
@@ -263,7 +267,8 @@ betweenfarm_model <- function(
     rateTransmission_truck_market <- (beta_truck_market * seasonality[names(seasonality) == time_start[i]]) * truck_market_vector
     rateTransmission_truck_loading <- (beta_truck_loading * seasonality[names(seasonality) == time_start[i]]) * truck_loading_vector
     
-    rateTransmission_formula <- (beta_formula * seasonality[names(seasonality) == time_start[i]]) * formula_vector
+    rateTransmission_formula_1 <- (beta_formula_1 * seasonality[names(seasonality) == time_start[i]]) * formula_vector_1
+    rateTransmission_formula_2 <- (beta_formula_2 * seasonality[names(seasonality) == time_start[i]]) * formula_vector_2
     
     spatial_vector <- (I * as.numeric(quarenten_vector == 0)) %*% gravity_matrix
     spatial_vector <- spatial_vector[1,]
@@ -295,7 +300,8 @@ betweenfarm_model <- function(
                                    truck_pig = 1 - exp(-rateTransmission_truck_pig),
                                    truck_market = 1 - exp(-rateTransmission_truck_market),
                                    truck_loading = 1 - exp(-rateTransmission_truck_loading),
-                                   formula = 1 - exp(-rateTransmission_formula)
+                                   formula_1 = 1 - exp(-rateTransmission_formula_1),
+                                   formula_2 = 1 - exp(-rateTransmission_formula_2)
     )
     
     
@@ -307,8 +313,8 @@ betweenfarm_model <- function(
       rateTransmission_truck_pig +
       rateTransmission_truck_market+
       rateTransmission_truck_loading+
-      rateTransmission_formula
-    
+      rateTransmission_formula_1 +
+      rateTransmission_formula_2
     
     rateTransmission <- 1 - exp(-rateTransmission) # new line
     
