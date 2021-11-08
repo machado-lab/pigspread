@@ -20,12 +20,6 @@ Accounting for multiple modes of livestock disease dissemination in epidemiologi
 }
 ```
 
-<a id='Disclaimer'></a>
-
-## Disclaimer
-
-This is an officially supported Fat and Proteins Research Foundation.
-
 ## Documentation
 
 Please refer to the [white paper](https://doi.org/10.1101/2021.07.26.453902)
