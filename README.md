@@ -22,6 +22,6 @@ Accounting for multiple modes of livestock disease dissemination in epidemiologi
 
 ## Related manuscripts
 
-Please refer to Modelling and assessing additional transmission routes for porcine reproductive and respiratory syndrome virus: vehicle movements and feed ingredients [link](https://doi.org/10.1101/2021.07.26.453902)
-Please refer to modeling between-farm transmission dynamics of porcine epidemic diarrhea virus: characterizing the dominant transmission routes [link](https://arxiv.org/abs/2201.04983)
+1. Please refer to Modelling and assessing additional transmission routes for porcine reproductive and respiratory syndrome virus: vehicle movements and feed ingredients [link](https://doi.org/10.1101/2021.07.26.453902)
+2. Please refer to modeling between-farm transmission dynamics of porcine epidemic diarrhea virus: characterizing the dominant transmission routes [link](https://arxiv.org/abs/2201.04983)
 
